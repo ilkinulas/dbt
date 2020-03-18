@@ -9,6 +9,7 @@ from dbt.clients.system import resolve_path_from_base
 from dbt.clients.system import path_exists
 from dbt.clients.system import load_file_contents
 from dbt.clients.yaml_helper import load_yaml_text
+from dbt.config.query_comment import QueryComment
 from dbt.exceptions import DbtProjectError
 from dbt.exceptions import RecursionException
 from dbt.exceptions import SemverException
@@ -201,11 +202,16 @@ def _raw_project_from(project_root: str) -> Dict[str, Any]:
     return project_dict
 
 
-def _query_comment_from_cfg(cfg_query_comment) -> Dict[str, Any]:
+def _query_comment_from_cfg(cfg_query_comment) -> QueryComment:
     if isinstance(cfg_query_comment, str):
-        return {'comment': cfg_query_comment, 'append': False}
+        if cfg_query_comment in ('None', ''):
+            return QueryComment(comment="")
+        return QueryComment(comment=cfg_query_comment)
 
-    return cfg_query_comment
+    return QueryComment(
+        comment=cfg_query_comment.get('comment'),
+        append=cfg_query_comment.get('append', False)
+    )
 
 
 @dataclass
@@ -250,7 +256,7 @@ class Project:
     snapshots: Dict[str, Any]
     dbt_version: List[VersionSpecifier]
     packages: Dict[str, Any]
-    query_comment: Dict[str, Any]
+    query_comment: Optional[Union[QueryComment, str]]
 
     @property
     def all_source_paths(self) -> List[str]:
